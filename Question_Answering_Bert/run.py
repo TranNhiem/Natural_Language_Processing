@@ -6,7 +6,7 @@ import os
 import numpy as np
 import string
 import tensorflow as tf
-from loading_data import read_data, join_splitting_word, ranking_similarity_text
+from loading_processing_data import read_data, join_splitting_word, ranking_similarity_text
 from rank_bm25 import BM25Okapi
 from transformers import BertForQuestionAnswering
 from transformers import AutoTokenizer
@@ -17,7 +17,7 @@ if gpus:
     try:
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
-        tf.config.experimental.set_visible_devices(gpus[0:8], 'GPU')
+        tf.config.experimental.set_visible_devices(gpus[0:2], 'GPU')
         logical_gpus = tf.config.experimental.list_logical_devices('GPU')
         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPU")
     except RuntimeError as e:
@@ -26,15 +26,15 @@ if gpus:
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string(
-    'train_path', "/data/SSL_dataset/ImageNet/1K_New/train",
+    'train_path', "/data/home/Rick109/Desktop/Working_space/NLP/NLP-2-Dataset/train.txt",
     'Train dataset path.')
 
 flags.DEFINE_string(
-    'val_path', "/data/SSL_dataset/ImageNet/1K_New/val",
+    'val_path', "/data/home/Rick109/Desktop/Working_space/NLP/NLP-2-Dataset/val.txt",
     'Validaion dataset path.')
 
 flags.DEFINE_string(
-    'test_path', "/data/SSL_dataset/ImageNet/1K_New/val_binary_mask_by_USS",
+    'test_path', "/data/home/Rick109/Desktop/Working_space/NLP/NLP-2-Dataset/test.txt",
     'Testing data path.')
 
 

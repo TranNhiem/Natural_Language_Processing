@@ -1,7 +1,8 @@
 '''
 Reading and splitting text data corresponding 
 '''
-
+from rank_bm25 import BM25Okapi
+import numpy as np
 def read_data(file_path):
     '''
     Args: Input path 
