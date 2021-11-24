@@ -11,17 +11,17 @@ from rank_bm25 import BM25Okapi
 from transformers import BertForQuestionAnswering
 from transformers import AutoTokenizer
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-if gpus:
+# gpus = tf.config.experimental.list_physical_devices('GPU')
+# if gpus:
 
-    try:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        tf.config.experimental.set_visible_devices(gpus[0:2], 'GPU')
-        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPU")
-    except RuntimeError as e:
-        print(e)
+#     try:
+#         for gpu in gpus:
+#             tf.config.experimental.set_memory_growth(gpu, True)
+#         tf.config.experimental.set_visible_devices(gpus[0:2], 'GPU')
+#         logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+#         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPU")
+#     except RuntimeError as e:
+#         print(e)
 
 FLAGS = flags.FLAGS
 
@@ -125,6 +125,7 @@ def main(argv):
     # 1. Loading data
     test_references_list, test_question_list, test_anwser_list = read_data(
         FLAGS.test_path)
+    print(len(test_references_list))
     # val_references_list, val_question_list, val_anwser_list = read_data(
     #     FLAGS.val_path)
     # train_references_list, train_question_list, train_anwser_list = read_data(
@@ -134,6 +135,7 @@ def main(argv):
 
     top_15_test_ref_list = ranking_similarity_text(
         test_references_list, test_question_list, Query_3Dim_arr=FLAGS.Query_3Dim_arr, top_k=FLAGS.top_k)
+    print(len(top_15_test_ref_list))
     # top_15_val_ref_list = ranking_similarity_text(
     #     val_references_list, val_question_list, Query_3Dim_arr=FLAGS.Query_3Dim_arr, top_k=FLAGS.top_k)
     # top_15_train_ref_list = ranking_similarity_text(
@@ -146,19 +148,20 @@ def main(argv):
     #     top_15_val_ref_list, val_question_list)
     # top_k_train_ref_list_join, train_question_list_join = join_splitting_word(
     #     top_15_train_ref_list, train_question_list)
-    strategy = tf.distribute.MirroredStrategy()
-    with strategy.scope():
-        pre_trained_model = BertForQuestionAnswering.from_pretrained(
-            'bert-large-uncased-whole-word-masking-finetuned-squad')
+    # strategy = tf.distribute.MirroredStrategy()
+    # with strategy.scope():
+    pre_trained_model = BertForQuestionAnswering.from_pretrained('bert-large-uncased-whole-word-masking-finetuned-squad')
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        'bert-large-uncased-whole-word-masking-finetuned-squad')
+    tokenizer = AutoTokenizer.from_pretrained('bert-large-uncased-whole-word-masking-finetuned-squad')
     predict_answer = []
     # range(len(all_question_list)):
-    for i in range(len(test_question_list_join)):
-        predict_ans = answer_question(
-            pre_trained_model, tokenizer, test_question_list_join[i], top_k_test_ref_list_join[i][0])
-        predict_answer.append(predict_ans)
+    print(len(test_question_list))
+    print(len(test_question_list_join))
+    print(len(top_k_test_ref_list_join[0]))
+    # for i in range(len(test_question_list)):
+    #     predict_ans = answer_question(
+    #         pre_trained_model, tokenizer, test_question_list_join[i], top_k_test_ref_list_join[i][0])
+    #     predict_answer.append(predict_ans)
     # Pre-Training and Finetune
 
 

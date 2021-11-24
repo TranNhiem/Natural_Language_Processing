@@ -86,7 +86,7 @@ def join_splitting_word(top_15_ref_list, test_question_list):
 
     return top_15_ref_similarity_list, all_question_list
 
-def ranking_similarity_text(reference_text, query_compare,Query_3Dim_arr=False, top_k=15): 
+def ranking_similarity_text(reference_text, query_compare,Query_3Dim_arr=True, top_k=15): 
 
   '''
   Args: 
