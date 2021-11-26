@@ -5,11 +5,13 @@ import torch
 import os
 import numpy as np
 import string
-import tensorflow as tf
+# import tensorflow as tf
 from loading_processing_data import read_data, join_splitting_word, ranking_similarity_text
 from rank_bm25 import BM25Okapi
 from transformers import BertForQuestionAnswering
 from transformers import AutoTokenizer
+
+#cuda = torch.device('cuda')
 
 # gpus = tf.config.experimental.list_physical_devices('GPU')
 # if gpus:
@@ -39,14 +41,14 @@ flags.DEFINE_string(
 
 
 flags.DEFINE_integer(
-    'top_k', 10,
+    'top_k', 15,
     'Top_k is the ranking the most top 10 similarity text compare to Query string base BM25')
 
 flags.DEFINE_boolean(
     'Query_3Dim_arr', True,
     'This enable choosing the element of the Query string instead of list ')
 
-Query_3Dim_arr = True
+
 
 
 def answer_question(pre_trained_model, tokenizer, question, answer_text):
@@ -80,6 +82,7 @@ def answer_question(pre_trained_model, tokenizer, question, answer_text):
 
     # ======== Evaluate ========
     # Run our example through the model.
+    #with torch.cuda.device(0):
     outputs = pre_trained_model(torch.tensor([input_ids]),  # The tokens representing our input text.
                                 # The segment IDs to differentiate question from answer_text
                                 token_type_ids=torch.tensor([segment_ids]),
@@ -133,7 +136,7 @@ def main(argv):
 
     # 2. Ranking similarity
 
-    top_15_test_ref_list = ranking_similarity_text(
+    top_15_test_ref_list  = ranking_similarity_text(
         test_references_list, test_question_list, Query_3Dim_arr=FLAGS.Query_3Dim_arr, top_k=FLAGS.top_k)
     print(len(top_15_test_ref_list))
     # top_15_val_ref_list = ranking_similarity_text(
@@ -157,13 +160,24 @@ def main(argv):
     # range(len(all_question_list)):
     print(len(test_question_list))
     print(len(test_question_list_join))
-    print(len(top_k_test_ref_list_join[0]))
-    # for i in range(len(test_question_list)):
-    #     predict_ans = answer_question(
-    #         pre_trained_model, tokenizer, test_question_list_join[i], top_k_test_ref_list_join[i][0])
-    #     predict_answer.append(predict_ans)
-    # Pre-Training and Finetune
+   
+    print(len(top_k_test_ref_list_join))
+   
 
+    for i in range(len(test_question_list)):
+        predict_ans = answer_question(
+            pre_trained_model, tokenizer, test_question_list_join[i], top_k_test_ref_list_join[i][3])
+        predict_answer.append(predict_ans)
+   
+    yarray = np.array(predict_answer)
+    # here is your data, in two numpy arrays
+    datafile_path_1 = "answer_submit_3.txt"
+    np.savetxt(datafile_path_1 , yarray,  fmt=['%s' ])
+    # data = np.column_stack([predict_answer,yarray])
+    # datafile_path = "test_submit_00.txt"
+    # np.savetxt(datafile_path , data,  fmt=['%s', '|||', '%s' ])
+  
+    
 
 if __name__ == '__main__':
 

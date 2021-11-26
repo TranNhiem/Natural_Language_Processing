@@ -88,31 +88,32 @@ def join_splitting_word(top_15_ref_list, test_question_list):
 
 def ranking_similarity_text(reference_text, query_compare,Query_3Dim_arr=True, top_k=15): 
 
-  '''
-  Args: 
+    '''
+    Args: 
     reference_text:  is the reference string text is in splitting space format
     top_k : top ranking you for similarity compare to the Query sequence string 
-  Retrun:
+    Retrun:
     Ranking sequence of ranking text 
-  '''
+    '''
 
-  top_k_ref_list=[]
+    top_k_ref_list=[]
 
-  for i in range(len(reference_text)): 
+    for i in range(len(reference_text)): 
+        
+        all_references_corpus = reference_text[i]
+        # Initalizing
+        bm25 = BM25Okapi(all_references_corpus)
+        #Ranking document 
+        '''Attention other case with 2D array remove [0] '''
+
+        if Query_3Dim_arr: 
+            tokenized_query = query_compare[i][0]
+        else: 
+            tokenized_query = query_compare[i]
+
+        #doc_scores= bm25.get_scores(tokenized_query)
+        top_k_ref = bm25.get_top_n(tokenized_query, all_references_corpus, n=top_k)
+        top_k_ref_list.append(top_k_ref)
+
     
-    all_references_corpus = reference_text[i]
-    # Initalizing
-    bm25 = BM25Okapi(all_references_corpus)
-    #Ranking document 
-    '''Attention other case with 2D array remove [0] '''
-
-    if Query_3Dim_arr: 
-      tokenized_query = query_compare[i][0]
-    else: 
-      tokenized_query = query_compare[i]
-
-    #doc_scores= bm25.get_scores(tokenized_query)
-    top_k_ref = bm25.get_top_n(tokenized_query, all_references_corpus, n=top_k)
-    top_k_ref_list.append(top_k_ref)
-
     return top_k_ref_list 
