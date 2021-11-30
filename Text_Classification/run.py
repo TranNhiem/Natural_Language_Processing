@@ -2,6 +2,7 @@ import argparse
 import logging
 import math
 import os
+from absl import app
 import random
 from pathlib import Path
 from absl import logging 
@@ -40,18 +41,17 @@ from finetun_bert_model import BertForSequenceClassification
 
 
 FLAGS= flags.FLAGS
-flags.DEFINE_boolean(
-flags.DEFINE_integer(
-flags.DEFINE_enum(
+
    
 
 flags.DEFINE_string(
 "train_file", "data/processed/external_train.csv" , 
-"Path directory for training dataset."
+"Path directory for training dataset.", 
 )
 flags.DEFINE_string(
 "validation_file", "data/processed/external_eval.csv", 
 "Validation path for val dataset."
+)
 
 flags.DEFINE_string(
 "model_name_or_path", "ckiplab/bert-base-chinese", 
@@ -59,8 +59,9 @@ flags.DEFINE_string(
 )
 flags.DEFINE_string(
 "output_dir" , "./pre_train", 
-"directory saving, export model")
+"directory saving, export model"
 )
+
 flags.DEFINE_integer(
 "max_length", 415,
 "The max length of input token"
@@ -173,7 +174,7 @@ def main(argv):
                         collate_fn=data_collator, 
                         batch_size=FLAGS.per_device_train_batch_size
     )
-    eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=FLASG.per_device_eval_batch_size)
+    eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=FLAGS.per_device_eval_batch_size)
 
 
     #----------------------------------
