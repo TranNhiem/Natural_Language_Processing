@@ -40,40 +40,84 @@ from finetun_bert_model import BertForSequenceClassification
 
 
 FLAGS= flags.FLAGS
+flags.DEFINE_boolean(
+flags.DEFINE_integer(
+flags.DEFINE_enum(
+   
 
-train_file="data/processed/external_train.csv" 
+flags.DEFINE_string(
+"train_file", "data/processed/external_train.csv" , 
+"Path directory for training dataset."
+)
+flags.DEFINE_string(
+"validation_file", "data/processed/external_eval.csv", 
+"Validation path for val dataset."
 
-validation_file="data/processed/external_eval.csv"
+flags.DEFINE_string(
+"model_name_or_path", "ckiplab/bert-base-chinese", 
+"Path pretrain weight Bert_base_chinese_model"
+)
+flags.DEFINE_string(
+"output_dir" , "./pre_train", 
+"directory saving, export model")
+)
+flags.DEFINE_integer(
+"max_length", 415,
+"The max length of input token"
+)
 
-max_length=415
+flags.DEFINE_boolean(
+"pad_to_max_length", False, 
+"Setting padding to match same length for all sentence"
+)
 
-pad_to_max_length=False
+flags.DEFINE_boolean(
+"use_slow_tokenizer", False, 
+" methods downloading/caching/loading pretrained tokenizers as well as adding tokens to the vocabulary."
+)
+flags.DEFINE_integer(
+"per_device_train_batch_size", 300, 
+"Train batch_size"
+)
+flags.DEFINE_integer(
+"per_device_eval_batch_size", 300,
+"Validation batch_size." 
+)
 
-model_name_or_path="ckiplab/bert-base-chinese"
+flags.DEFINE_float( 
+"weight_decay", 0., # 1e-6
+"Amount of weight decay")
 
-use_slow_tokenizer=False
+flags.DEFINE_integer(
+"num_train_epochs", 3, 
+"Number of training epochs")
 
-per_device_train_batch_size=12
+flags.DEFINE_integer(
+"max_train_steps", None, 
+"Pre-Define maximum number of steps training ")
 
-per_device_eval_batch_size=32
 
-learning_rate=5e-5
+flags.DEFINE_integer(
+"gradient_accumulation_steps", 2, # Using for Multi-GPUs training
+"running a configured number of steps without updating the model variables"
+)
 
-weight_decay=0
+flags.DEFINE_float( 
+"learning_rate", 5e-5, 
+"Initial learning rate set values")
 
-num_train_epochs=3
+flags.DEFINE_enum(
+"lr_scheduler_type", "linear", ['no', 'linear', 'sqrt'], 
+"Scaling learning rate")
 
-max_train_steps=None
+flags.DEFINE_integer(
+"num_warmup_steps", 500, # recommend calculate warmup steps
+"Predefine number of warmup steps without calculate Size of training and Batch_size")
 
-gradient_accumulation_steps=2
+flags.DEFINE_integer(
+"seed", 42, 
+"Initial value for random seed")
 
-lr_scheduler_type="linear"
-
-num_warmup_steps=500
-
-output_dir="model"
-
-seed=42
 
 
 def main(argv): 
@@ -106,7 +150,7 @@ def main(argv):
         
         # Tokenize the texts
         texts = ((examples[sentence1_key],) if sentence2_key is None else (examples[sentence1_key], examples[sentence2_key]))
-        result = tokenizer(*texts, padding=False, max_length=args.max_length, truncation=True)
+        result = tokenizer(*texts, padding=False, max_length=FLAGS.max_length, truncation=True)
 
         # Map labels to IDs
         result["labels"] = [label_to_id[l] for l in examples["label"]]
@@ -127,9 +171,9 @@ def main(argv):
     eval_dataset = processed_datasets["validation"]
     train_dataloader = DataLoader(train_dataset, shuffle=True, 
                         collate_fn=data_collator, 
-                        batch_size=args.per_device_train_batch_size
+                        batch_size=FLAGS.per_device_train_batch_size
     )
-    eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
+    eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=FLASG.per_device_eval_batch_size)
 
 
     #----------------------------------
@@ -186,5 +230,49 @@ def main(argv):
     #--------------------------------------
     # Configure Train and Evaluation Loop
     #--------------------------------------
-    total_batch_size = FLAGS.
-     
+    total_batch_size = FLAGS.per_device_train_batch_size * accelerator.num_processes * FLAGS.gradient_accumulation_steps
+    progress_bar = tqdm(range(FLAGS.max_train_steps), disable=not accelerator.is_local_main_process)
+
+    completed_steps = 0
+    for epoch in range(FLAGS.num_train_epochs):
+    model.train()
+    for step, batch in enumerate(train_dataloader):
+        outputs = model(**batch)
+        loss = outputs.loss
+        loss = loss / FLAGS.gradient_accumulation_steps
+        accelerator.backward(loss)
+        if step % FLAGS.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
+            optimizer.step()
+            lr_scheduler.step()
+            optimizer.zero_grad()
+            progress_bar.update(1)
+            completed_steps += 1
+
+        if completed_steps >= FLASG.max_train_steps:
+            break
+
+    model.eval()
+    with torch.no_grad():
+        for step, batch in enumerate(eval_dataloader):
+            outputs = model(**batch)
+            predictions = outputs.logits.argmax(dim=-1)
+            metric.add_batch(
+                predictions=accelerator.gather(predictions),
+                references=accelerator.gather(batch["labels"]),
+            )
+
+    eval_metric = metric.compute()
+    print(f"epoch {epoch}: {eval_metric}")
+
+
+    if FLASG.output_dir is not None:
+        accelerator.wait_for_everyone()
+    unwrapped_model = accelerator.unwrap_model(model)
+    unwrapped_model.save_pretrained(FLASG.output_dir, save_function=accelerator.save)
+    if accelerator.is_main_process:
+        tokenizer.save_pretrained(FLAGS.output_dir)
+
+# Pre-Training and Finetune
+if __name__ == '__main__':
+
+    app.run(main)
