@@ -40,7 +40,7 @@ from transformers import (
 
 from transformers.file_utils import get_full_repo_name
 from transformers.utils.versions import require_version
-from finetun_bert_model import BertForSequenceClassification
+from finetune_bert_model import BertForSequenceClassification
 
 
 FLAGS= flags.FLAGS
