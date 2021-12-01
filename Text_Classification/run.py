@@ -46,11 +46,11 @@ from finetune_bert_model import BertForSequenceClassification
 FLAGS= flags.FLAGS
 
 flags.DEFINE_string(
-"train_file", "data/processed/external_train.csv" , 
+"train_file", "./data/processed/external_train.csv" , 
 "Path directory for training dataset.", 
 )
 flags.DEFINE_string(
-"validation_file", "data/processed/external_eval.csv", 
+"validation_file", "./data/processed/external_eval.csv", 
 "Validation path for val dataset."
 )
 
