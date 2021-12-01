@@ -157,6 +157,8 @@ def main(argv):
         # Map labels to IDs
         result["labels"] = [label_to_id[l] for l in examples["label"]]
         return result
+
+    # Multi-GPUs training Configure 
     accelerator = Accelerator()
     accelerator.wait_for_everyone()
     with accelerator.main_process_first():
@@ -172,6 +174,7 @@ def main(argv):
 
     train_dataset = processed_datasets["train"]
     eval_dataset = processed_datasets["validation"]
+
     train_dataloader = DataLoader(train_dataset, shuffle=True, 
                         collate_fn=data_collator, 
                         batch_size=FLAGS.per_device_train_batch_size
@@ -211,6 +214,7 @@ def main(argv):
     optimizer = AdamW(optimizer_grouped_parameters, lr=FLAGS.learning_rate)
     ## Scheduler the learning rate with training steps
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / FLAGS.gradient_accumulation_steps)
+
     if FLAGS.max_train_steps is None:
         FLAGS.max_train_steps = FLAGS.num_train_epochs * num_update_steps_per_epoch
     else:
@@ -220,22 +224,22 @@ def main(argv):
         name=FLAGS.lr_scheduler_type,
         optimizer=optimizer,
         num_warmup_steps=FLAGS.num_warmup_steps,
-        num_training_steps=FLAGS.max_train_steps,
-    )
+        num_training_steps=FLAGS.max_train_steps,)
    
     # Prepare everything with our `accelerator`.
     model, optimizer, train_dataloader, eval_dataloader = accelerator.prepare(
         model, optimizer, train_dataloader, eval_dataloader)
     
-    # Metric evaluate model
+    # Metric evaluate model (F1 Score to measure the Error)
     metric = load_metric("f1")
+    
     #--------------------------------------
     # Configure Train and Evaluation Loop
     #--------------------------------------
     total_batch_size = FLAGS.per_device_train_batch_size * accelerator.num_processes * FLAGS.gradient_accumulation_steps
     
     
-     ## Configure model Tracking result 
+    ## Configure model Tracking result 
     configs = {
 
         "Model_Arch": "FineTune_BertChineseBase",
@@ -260,11 +264,15 @@ def main(argv):
         num_batch=0
         
         for step, batch in enumerate(train_dataloader):
+            
+            #Forward path
             outputs = model(**batch)
             loss = outputs.loss
             loss = loss / FLAGS.gradient_accumulation_steps
             total_loss += loss
             num_batch += 1
+
+            # Backprobagation path
             accelerator.backward(loss)
             if step % FLAGS.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
                 optimizer.step()
@@ -275,22 +283,25 @@ def main(argv):
 
             if completed_steps >= FLAGS.max_train_steps:
                 break
-
+        # Epoch Loss training
         epoch_loss= total_loss/num_batch
-        
-        
-    
 
-    model.eval()
-    with torch.no_grad():
-        for step, batch in enumerate(eval_dataloader):
-            outputs = model(**batch)
-            predictions = outputs.logits.argmax(dim=-1)
-            metric.add_batch(
-                predictions=accelerator.gather(predictions),
-                references=accelerator.gather(batch["labels"]),
-            )
+        model.eval()
+        with torch.no_grad():
+            for step, batch in enumerate(eval_dataloader):
+                outputs = model(**batch)
+                predictions = outputs.logits.argmax(dim=-1)
+                metric.add_batch(
+                    predictions=accelerator.gather(predictions),
+                    references=accelerator.gather(batch["labels"]),
+                )
 
+        ## Configure Checking the output
+        wandb.log({
+            "epochs": epoch+1,
+            "train/total_loss": epoch_loss,
+        })
+        
     eval_metric = metric.compute()
     print(f"epoch {epoch}: {eval_metric}")
 
