@@ -19,6 +19,9 @@ import transformers
 from accelerate import Accelerator
 from huggingface_hub import Repository
 
+import wandb
+from wandb.keras import WandbCallback
+
 
 import transformers
 from accelerate import Accelerator
@@ -41,8 +44,6 @@ from finetun_bert_model import BertForSequenceClassification
 
 
 FLAGS= flags.FLAGS
-
-   
 
 flags.DEFINE_string(
 "train_file", "data/processed/external_train.csv" , 
@@ -90,7 +91,7 @@ flags.DEFINE_float(
 "Amount of weight decay")
 
 flags.DEFINE_integer(
-"num_train_epochs", 3, 
+"num_train_epochs", 10, 
 "Number of training epochs")
 
 flags.DEFINE_integer(
@@ -166,6 +167,7 @@ def main(argv):
             )
 
     #Dataset to dataloader 
+    tokenizer = AutoTokenizer.from_pretrained(FLAGS.model_name_or_path, use_fast=not FLAGS.use_slow_tokenizer)
     data_collator= DataCollatorWithPadding(tokenizer, pad_to_multiple_of=(8 if accelerator.use_fpt16 else None))
 
     train_dataset = processed_datasets["train"]
@@ -181,7 +183,7 @@ def main(argv):
     #Loading model section 
     #----------------------------------
     config = AutoConfig.from_pretrained(FLAGS.model_name_or_path, num_labels=num_labels)
-    tokenizer = AutoTokenizer.from_pretrained(FLAGS.model_name_or_path, use_fast=not FLAGS.use_slow_tokenizer)
+    
     model = BertForSequenceClassification.from_pretrained( FLAGS.model_name_or_path,config=config,) 
     model.config.label2id = label_to_id
     model.config.id2label = id2label
@@ -217,40 +219,67 @@ def main(argv):
     lr_scheduler = get_scheduler(
         name=FLAGS.lr_scheduler_type,
         optimizer=optimizer,
-        num_warmup_steps=FLASG.num_warmup_steps,
-        num_training_steps=FLASG.max_train_steps,
+        num_warmup_steps=FLAGS.num_warmup_steps,
+        num_training_steps=FLAGS.max_train_steps,
     )
-
+   
     # Prepare everything with our `accelerator`.
     model, optimizer, train_dataloader, eval_dataloader = accelerator.prepare(
         model, optimizer, train_dataloader, eval_dataloader)
     
     # Metric evaluate model
     metric = load_metric("f1")
-
     #--------------------------------------
     # Configure Train and Evaluation Loop
     #--------------------------------------
     total_batch_size = FLAGS.per_device_train_batch_size * accelerator.num_processes * FLAGS.gradient_accumulation_steps
-    progress_bar = tqdm(range(FLAGS.max_train_steps), disable=not accelerator.is_local_main_process)
+    
+    
+     ## Configure model Tracking result 
+    configs = {
 
+        "Model_Arch": "FineTune_BertChineseBase",
+        "Training mode": "Supervised",
+        "Dataset": "Chinese_Text_setiment_Aidea",
+        "Epochs": FLAGS.num_train_epochs,
+        "Batch_size": total_batch_size,
+        "Learning_rate": FLAGS.learning_rate,
+        "Optimizer": "AdamW",
+
+    }
+    wandb.init(project="NLP_finetune_BERT_Architecture",
+               sync_tensorboard=True, config=configs)
+
+    
+    
+    progress_bar = tqdm(range(FLAGS.max_train_steps), disable=not accelerator.is_local_main_process)
     completed_steps = 0
     for epoch in range(FLAGS.num_train_epochs):
-    model.train()
-    for step, batch in enumerate(train_dataloader):
-        outputs = model(**batch)
-        loss = outputs.loss
-        loss = loss / FLAGS.gradient_accumulation_steps
-        accelerator.backward(loss)
-        if step % FLAGS.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
-            optimizer.step()
-            lr_scheduler.step()
-            optimizer.zero_grad()
-            progress_bar.update(1)
-            completed_steps += 1
+        model.train()
+        total_loss=0
+        num_batch=0
+        
+        for step, batch in enumerate(train_dataloader):
+            outputs = model(**batch)
+            loss = outputs.loss
+            loss = loss / FLAGS.gradient_accumulation_steps
+            total_loss += loss
+            num_batch += 1
+            accelerator.backward(loss)
+            if step % FLAGS.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
+                optimizer.step()
+                lr_scheduler.step()
+                optimizer.zero_grad()
+                progress_bar.update(1)
+                completed_steps += 1
 
-        if completed_steps >= FLASG.max_train_steps:
-            break
+            if completed_steps >= FLAGS.max_train_steps:
+                break
+
+        epoch_loss= total_loss/num_batch
+        
+        
+    
 
     model.eval()
     with torch.no_grad():
@@ -266,10 +295,10 @@ def main(argv):
     print(f"epoch {epoch}: {eval_metric}")
 
 
-    if FLASG.output_dir is not None:
+    if FLAGS.output_dir is not None:
         accelerator.wait_for_everyone()
     unwrapped_model = accelerator.unwrap_model(model)
-    unwrapped_model.save_pretrained(FLASG.output_dir, save_function=accelerator.save)
+    unwrapped_model.save_pretrained(FLAGS.output_dir, save_function=accelerator.save)
     if accelerator.is_main_process:
         tokenizer.save_pretrained(FLAGS.output_dir)
 
