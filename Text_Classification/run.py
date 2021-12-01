@@ -171,7 +171,7 @@ def main(argv):
 
     #Dataset to dataloader 
 
-    data_collator= DataCollatorWithPadding(tokenizer, pad_to_multiple_of=(8 ))#if accelerator.use_fpt16 else None
+    data_collator= DataCollatorWithPadding(tokenizer, pad_to_multiple_of=(8 if accelerator else None))#if accelerator.use_fpt16 else None
 
     train_dataset = processed_datasets["train"]
     eval_dataset = processed_datasets["validation"]
