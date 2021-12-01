@@ -148,6 +148,7 @@ def main(argv):
 
     ### Dataloader section: 
     #1. Preparing dataloader with (accelerator for faster loading data)
+    tokenizer = AutoTokenizer.from_pretrained(FLAGS.model_name_or_path, use_fast=not FLAGS.use_slow_tokenizer)
     def preprocess_function(examples):
         
         # Tokenize the texts
@@ -169,7 +170,7 @@ def main(argv):
             )
 
     #Dataset to dataloader 
-    tokenizer = AutoTokenizer.from_pretrained(FLAGS.model_name_or_path, use_fast=not FLAGS.use_slow_tokenizer)
+
     data_collator= DataCollatorWithPadding(tokenizer, pad_to_multiple_of=(8 if accelerator.use_fpt16 else None))
 
     train_dataset = processed_datasets["train"]
