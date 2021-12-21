@@ -20,4 +20,9 @@ def get_dataset(file_pattern, batch_size):
     return (tf.data.TFRecordDataset(tf.data.Dataset.list_files(file_pattern))
     .map(read_example, num_parallel_calls=tf.data.AUTOTUNE,
             deterministic=False,)
-    .shuffle(FLASG.batch_size)
+    .shuffle(FLAGS.train_batch_size*10)
+    .prefetch(buffer_size= tf.data.AUTOTUNE)
+    .batch(batch_size)
+    )
+
+

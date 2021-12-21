@@ -23,7 +23,6 @@ This example requires TensorFlow 2.4 or higher. In addition, TensorFlow Hub and 
 # Projection Dimension Embedding (Vision and Text Representation SAME Dim)
 # **************************************************
 
-
 def project_embeddings(
         embeddings, num_projection_layers, projection_dims, dropout_rate):
     projected_embeddings = layers.Dense(units=projection_dims)(embeddings)
@@ -38,7 +37,6 @@ def project_embeddings(
 # **************************************************
 # Vision Encoder Finetune ResNet Conv Encoder
 # **************************************************
-
 
 def create_vision_encoder(num_projection_layers, projection_dims, dropout_rate, trainable=False):
     # Load the pre-trained Xception model to be used as the base encoder.
@@ -64,7 +62,6 @@ def create_vision_encoder(num_projection_layers, projection_dims, dropout_rate, 
 # **************************************************
 # Text Encoder Fintue BERT Architecture
 # **************************************************
-
 
 def create_text_encoder(num_projection_layers, projection_dims, dropout_rate, trainable=False):
     # Load the BERT preprocessing module.
