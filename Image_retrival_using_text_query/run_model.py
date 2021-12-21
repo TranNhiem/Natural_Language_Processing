@@ -35,10 +35,44 @@ def main(argv):
     if len(argv) > 1:
         raise app.UsageError('Too many command-line arguments.')
 
-    train_example_count = write_data(FLAGS.train_image_paths, FLAGS.num_train_files, FLAGS.train_files_prefix)
+    
+    #***************************************************
+    # Section reading text Json Format file 
+    #***************************************************
+
+    with open(annotation_file, "r") as f: 
+        annotations = json.load(f)["annotations"]
+
+    image_path_to_caption= collections.defaultdict(list)
+    for element in annotations: 
+        caption = f"{element['caption].lower().rstrip('.')}"
+        image_path= image_dir + "/COCO_train2014_" + "%012d.jpg" % (element["image_id"])
+        image_path_to_caption[image_path].append(caption)
+
+    image_paths = list(image_path_to_caption.keys())
+    print(f"Number of images: {len(image_path)}")
+
+
+    train_size = FLAGS.training_samples
+    valid_size = FLASG.val_samples
+    captions_per_image = FLAGS.num_captions
+    # define for devided data into sub train files
+    images_per_file = FLAGS.images_per_file
+    train_image_path= image_paths[: train_size]
+    num_train_files= int(np.ceil(train_size / images_per_file))
+    train_files_prefix = os.path.join(tfrecords_dir, "train")
+
+    valid_image_paths = image_paths[-val_size: ]
+    num_val_files = int(np.ceil(valid_size / images_per_file))
+    valid_files_prefix = os.path.join(tfrecords_dir, "valid")
+
+    tf.io.gfile.makedirs(tfrecords_dir)
+    train_example_count = write_data(FLAGS.train_image_paths, FLAGS.num_train_files, train_files_prefix)
     print(f"{train_example_count} training examples were written to tfrecord files.")
-    valid_example_count = write_data(FLAGS.valid_image_paths, FLAGS.num_valid_files, FLAGS.valid_files_prefix)
+    valid_example_count = write_data(FLAGS.valid_image_paths, FLAGS.num_valid_files, valid_files_prefix)
     print(f"{valid_example_count} evaluation examples were written to tfrecord files.")
+
+
 
 
 # Pre-Training and Finetune
