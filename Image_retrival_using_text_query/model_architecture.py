@@ -10,6 +10,7 @@ from absl import flags
 FLASG = flags.FLAGS
 
 
+
 '''
 Description: Implementation of a dual encoder model for retrieving images that match natural language queries.
 
