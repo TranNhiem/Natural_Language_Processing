@@ -3,7 +3,7 @@ import os
 import json
 import collections
 import numpy as np
-form absl import flags
+from absl import flags
 from absl import logging
 
 FLAGS= flags.FLAGS
@@ -11,7 +11,6 @@ FLAGS= flags.FLAGS
 #***************************************************
 # Section Dataset already Download
 #***************************************************
-
 root_dir = "/shared_SSD_20TB/SSL-TEAM/Rick/"
 annotations_dir = os.path.join(root_dir, "annotations")
 images_dir = os.path.join(root_dir, "train2014")
